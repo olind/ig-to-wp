@@ -20,10 +20,11 @@ add_filter( 'after_setup_theme', 'parsejson' );
 */
 function parsejson(){
 
-    $slices = json_decode(file_get_contents('http://jsonimporter.local/wp-content/ig_download/media.json'),true);
+    $ig_json_file_uri = get_stylesheet_directory() . "/../../ig_download/media.json";
+    $slices = json_decode( file_get_contents( $ig_json_file_uri ), true );
     
       //convert_photos_to_wp_posts($slices['photos'][16]);
-      //convert_videos_to_wp_posts($slices['videos'][0]);
+      convert_videos_to_wp_posts($slices['videos'][2]);
         
       if ($slices['photos']) {
         foreach ($slices['photos'] as $slice) {
@@ -33,7 +34,7 @@ function parsejson(){
 
     if ($slices['videos']) { 
         foreach ($slices['videos'] as $slice) {
-           // convert_videos_to_wp_posts($slice);
+           //convert_videos_to_wp_posts($slice);
        }
     }
 }
@@ -45,7 +46,8 @@ function convert_videos_to_wp_posts($insta_videos){
     convert_insta_posts_to_wp_posts($insta_videos, false);
 }
 
-function convert_insta_posts_to_wp_posts($photos,$is_photo){
+function convert_insta_posts_to_wp_posts( $photos, $is_photo ){
+
     $wp_photo_category_id = 1;
     $wp_video_category_id = 5;
 
@@ -58,6 +60,7 @@ function convert_insta_posts_to_wp_posts($photos,$is_photo){
     $location = $photos['location'];
     $local_file_name = explode("/",$photos['path'])[2];
     $local_directory = get_stylesheet_directory() . "/../../ig_download/";
+    $ig_temp_directory = get_stylesheet_directory() . "/../../ig_download/temp";
     $local_file_path = $local_directory . $photos['path'] . '';
     $post_content = '<section class="insta-caption">' . $photos['caption'] . '</section><section class="insta-location">' . $location . '</section><section class="insta-imported">This post was automatically imported from Instagram 2019-10-10.</section>';
 
@@ -91,14 +94,26 @@ function convert_insta_posts_to_wp_posts($photos,$is_photo){
     if( null == get_page_by_title( $title, OBJECT, 'post' ) ) {
         $post_id = wp_insert_post($wp_post);
     } else {
-        var_dump("Inserting post failed");
+        echo "<pre>Inserting post failed<br>";
+        echo "photos:<br>";
         var_dump($photos);
+        echo "wp_post:<br>";
         var_dump($wp_post);
+        echo "post_id:<br>";
         var_dump($post_id);
+        echo "</pre><hr>";
+
+        return;
     }
 
 //upload imgage without attaching it to a certain post
     $media_upload = upload_file( $local_file_name, $local_file_path, $yyyymm);
+
+    if(!$is_photo){
+        $video_thumb_file_path = generate_thumbnail_from_video($local_file_name, $local_file_path, $taken_at, $ig_temp_directory);
+
+        var_dump($video_thumb_file_path);
+    }
 
 //Attach uploaded file to post
     $uploaded_file_path = $media_upload['file'];
@@ -143,7 +158,21 @@ function convert_insta_posts_to_wp_posts($photos,$is_photo){
 
 function upload_file( $file_name, $file_path, $yyyymm ){
     $file_bits = file_get_contents($file_path);
+
+    if ($file_bits === false) {
+        echo "<pre>Reading file failed. file_path: " . $file_path . "</pre>";
+        var_dump($file_bits);
+        return false;
+    }
+
     $uploaded = wp_upload_bits($file_name, null, $file_bits, $yyyymm);
+    if ( array_key_exists( 'error', $uploaded )) {
+        echo "<pre>Uploading to WP failed";
+        var_dump($uploaded);
+        echo "</pre>";
+        return false;
+    }
+
     return $uploaded;
 }
 
@@ -169,5 +198,16 @@ function attach_file( $file_path, $file_name, $parent_post_id, $is_photo ) {
     return $attach_id;
 }
 
+function generate_thumbnail_from_video($local_file_name, $local_video_file_path, $taken_at, $ig_temp_directory) {
+    $temp_image_file_path = $ig_temp_directory . "/" . $local_file_name . '.jpg';
+
+    $ffmpeg_path = '/usr/local/bin/ffmpeg';
+
+    // timestamp: HH:MM:SS.fff
+    $ffmpeg_cmd = "$ffmpeg_path -i $local_video_file_path -ss 00:00:01.000 -y -vframes 1 $temp_image_file_path";
+    shell_exec($ffmpeg_cmd);
+
+    return $temp_image_file_path;
+}
 
 ?>
