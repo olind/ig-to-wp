@@ -4,6 +4,11 @@
     Put the exported json+image+photo files in wp-content/ig_download
     There are some file paths to update in the code below - for example path 
     to FFMPEG and a path to a temp directory for video thumbnails.
+
+    Using the filename from IG exported files as page sluq to make it unique
+
+    Run it using WP-CLI: wp eval-file igtowp.php
+    To regenerate thumbnails use: wp media regenerate --yes
 */
 
 parsejson();
@@ -18,7 +23,7 @@ function parsejson(){
     //convert_photos_to_wp_posts($slices['photos'][0]);
     //convert_videos_to_wp_posts($slices['videos'][0]);
     
-
+/*
     WP_CLI::log("Starting to import photos");
     if ($slices['photos']) {
         foreach ($slices['photos'] as $slice) {
@@ -32,6 +37,7 @@ function parsejson(){
            convert_videos_to_wp_posts($slice);
        }
     }
+*/
 }
 
 function convert_photos_to_wp_posts($insta_photos){
@@ -52,6 +58,7 @@ function convert_insta_posts_to_wp_posts( $photos, $is_photo ){
     $author_id = 1;
     $taken_at = $photos['taken_at'];
     $yyyymm = $photos['taken_at'][0].$photos['taken_at'][1].$photos['taken_at'][2].$photos['taken_at'][3].'/'.$photos['taken_at'][5].$photos['taken_at'][6];
+    $yyyymmddhhmmss = str_replace('T',' ',$photos['taken_at']);
     $title = $photos['caption'];
     
     $location = "";
@@ -67,7 +74,7 @@ function convert_insta_posts_to_wp_posts( $photos, $is_photo ){
         $title = substr($title, 0, 27) . '...';
     }
     if(strlen ($title) < 1) {
-        $title = $yyyymm;
+        $title = $yyyymmddhhmmss;
     }
 
     $post_category = array();
@@ -77,23 +84,14 @@ function convert_insta_posts_to_wp_posts( $photos, $is_photo ){
         $post_category[] = $wp_video_category_id;
     }
 
-    $title = get_next_unique_post_title($title);
-/*
-    if ( ! is_admin() ) {
-        require_once( ABSPATH . 'wp-admin/includes/post.php' );
+    if (empty($local_file_name)){
+        WP_CLI::log("Skipping - no file name for post: " . $photos);
+        return;
     }
-
-    for ($i = 1; $i <= 20; $i++) {
-        if(post_exists( $title,'','' ) ) {
-            $title = $title . " - " . $i;
-        }
-    }
-    if(post_exists( $title,'','' ) ) {
-        $title = $title . " - " . $local_file_name;
-    }*/
 
 //Create post without adding the image to get a post id where we can attach the image after it's uploaded
     $wp_post = array(
+        'post_name'         =>  $local_file_name,
         'comment_status'	=>	'closed',
         'ping_status'		=>	'closed',
         'post_date'         =>  $taken_at,
@@ -105,19 +103,8 @@ function convert_insta_posts_to_wp_posts( $photos, $is_photo ){
         'post_category'     =>  $post_category
     );
 
-    /*
-    $available_title = $title;
-    $duplicated_title_counter = 1;
-    $wp_post_temp = get_page_by_title( $available_title, OBJECT, 'post' );
-    while ( $wp_post_temp != null && $duplicated_title_counter <= 20 ) {
-        $available_title = $title . " - " . $duplicated_title_counter;
-        $wp_post_temp = get_page_by_title( $available_title, OBJECT, 'post' );
-        $duplicated_title_counter++;
-    }*/
-
-    if( null == get_page_by_title( $wp_post['post_title'], OBJECT, 'post' ) ) {
+    if( null == get_page_by_path( $wp_post['post_name'] )) {
         $post_id = wp_insert_post($wp_post);
-        // todo: maybe if it's still not unique add $local_file_name or something thats unique for sure
     } else {
         WP_CLI::log("Inserting post failed");
         WP_CLI::log("photos:");
@@ -203,6 +190,7 @@ function convert_insta_posts_to_wp_posts( $photos, $is_photo ){
     }
 }
 
+/* unused
 function get_next_unique_post_title($title){
 
     if ( ! is_admin() ) {
@@ -219,7 +207,7 @@ function get_next_unique_post_title($title){
     }
 
     return $title;
-}
+}*/
 
 function upload_file( $file_name, $file_path, $yyyymm ){
     
