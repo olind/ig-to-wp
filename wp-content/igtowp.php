@@ -1,14 +1,34 @@
 <?php
 
 /*  
-    Put the exported json+image+photo files in wp-content/ig_download
-    There are some file paths to update in the code below - for example path 
-    to FFMPEG and a path to a temp directory for video thumbnails.
+Script used to import Instagram data export to WordPress using WP-CLI
 
-    Using the filename from IG exported files as page sluq to make it unique
+Prerequisities:
+ * Download this php-file (script) to your wp-content folder (ie. wp-content/igtowp.php) 
+ * Download json + media files from IG to ig_download folder (ie. wp-content/ig_download/media.json)
+ * Create temp folder for auto generated video thumbnails inside ig_download folder (ie. wp-content/ig_download/temp)
+ * WP-CLI installed and configured
+ 
+Some paths (eg. path to FFMPEG binary) needs to be updated in code
 
-    Run it using WP-CLI: wp eval-file igtowp.php
-    To regenerate thumbnails use: wp media regenerate --yes
+It uses the filenames from IG as page sluq to make it unique
+
+To run it you WP-CLI: wp eval-file igtowp.php
+You probably want to regenerate thumbnails after import. Use WP-CLI: wp media regenerate --yes
+
+I use a temporary WP install to import the data. I then massage it manually before I export+import it to my live site.
+
+I'm using the following plugins on the import-site:
+ * Bulk delete & Media cleaner to empty the site
+
+ * Core functionallity, Display posts, Display posts - pagination to show the posts in a grid
+   Shortcode to show posts in grid: [display-posts image_size="thumbnail" wrapper="div" wrapper_class="display-posts-listing grid" posts_per_page="500" pagination="true"]
+   The CSS is in the child theme
+
+ * All-in-one WP Migration V6.77 + the built in WP import / export to move + migrate + merge sites
+
+TODO: fix logging / error handling
+
 */
 
 parsejson();
@@ -89,9 +109,12 @@ function convert_insta_posts_to_wp_posts( $photos, $is_photo ){
         return;
     }
 
+    //todo: use sanitize wp method instead to make sure we check with the same string every time?
+    $wp_page_slug = str_replace('.','-',local_file_name);
+
 //Create post without adding the image to get a post id where we can attach the image after it's uploaded
     $wp_post = array(
-        'post_name'         =>  $local_file_name,
+        'post_name'         =>  $wp_page_slug,
         'comment_status'	=>	'closed',
         'ping_status'		=>	'closed',
         'post_date'         =>  $taken_at,
