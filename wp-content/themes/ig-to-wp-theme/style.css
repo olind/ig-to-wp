@@ -1,0 +1,68 @@
+/*
+ Theme Name:   IG to WP preview theme
+ Theme URI:    -
+ Description:  Theme made to preview the IG imported posts
+ Author:       Ola Lindberg
+ Author URI:   https://olalindberg.com
+ Template:     twentynineteen
+ Version:      0.9
+ License:      GNU General Public License v2 or later
+ License URI:  http://www.gnu.org/licenses/gpl-2.0.html
+ Tags:         -
+ Text Domain:  ola-2019
+*/
+
+* {
+    font-family: sans-serif!important;
+}
+
+body.page-id-14536 { 
+    margin: 10px;
+}
+
+#masthead .site-featured-image,
+.page-id-14536 .entry-header {
+    display: none!important;
+}
+
+.page-id-14536 #masthead,
+.page-id-14536 .site-branding,
+.page-id-14536 .entry-header,
+.page-id-14536 .entry-content,
+.page-id-14536 .entry .entry-content > *, 
+.page-id-14536 .entry .entry-summary > * {
+    width: 100%!important;
+    max-width: none!important;
+    margin: 0!important;
+    padding: 0!important;
+}
+
+#masthead{
+    min-height: initial!important;
+}
+
+.page-id-14536 #site-navigation{
+    margin-bottom: 40px;
+}
+
+.display-posts-listing.grid {
+    display: grid;
+    /*grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));*/
+    grid-template-columns: repeat(auto-fit, 150px);
+    gap: 20px 10px;
+    align-items: flex-end;
+}
+
+.listing-item {
+    display: inline-block;
+    width: 150px;
+}
+
+.listing-item a:last-child {
+    overflow: hidden;
+    max-width: 100%;
+    word-break: break-all;
+    display: block;
+    font-size: 14px;
+    height: 24px;
+}
