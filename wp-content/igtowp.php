@@ -27,9 +27,6 @@ I'm using the following plugins on the import-site:
 
  * All-in-one WP Migration V6.77 + the built in WP import / export to move + migrate + merge sites
 
-TODO: Fix logging / error handling - WP_CLI::Warning() doesn't show somewhere + FFMPEG outputs a lot of debug data.
-TODO: On ~30 / 1000 imported images it fails to attach the image to WP and the images ends up in media library as unattached. 
-
 */
 
 parsejson();
