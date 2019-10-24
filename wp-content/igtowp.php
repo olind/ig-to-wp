@@ -14,7 +14,7 @@ Some paths (eg. path to FFMPEG binary) needs to be updated in code
 It uses the filenames from IG as page sluq to make it unique
 
 To run it you WP-CLI: wp eval-file igtowp.php
-You probably want to regenerate thumbnails after import. Use WP-CLI: wp media regenerate --yes
+You probably want to regenerate thumbnails after import. Use WP-CLI: wp media regenerate --yes or Regenerate thumbnails plugin.
 
 I use a temporary WP install to import the data. I then massage it manually before I export+import it to my live site.
 
@@ -27,7 +27,8 @@ I'm using the following plugins on the import-site:
 
  * All-in-one WP Migration V6.77 + the built in WP import / export to move + migrate + merge sites
 
-TODO: fix logging / error handling
+TODO: Fix logging / error handling - WP_CLI::Warning() doesn't show somewhere + FFMPEG outputs a lot of debug data.
+TODO: On ~30 / 1000 imported images it fails to attach the image to WP and the images ends up in media library as unattached. 
 
 */
 
@@ -39,23 +40,28 @@ function parsejson(){
 
     $ig_json_file_uri = get_stylesheet_directory() . "/../../ig_download/media.json";
     $slices = json_decode( file_get_contents( $ig_json_file_uri ), true );
-    
-    //convert_photos_to_wp_posts($slices['photos'][0]);
+
+    convert_photos_to_wp_posts($slices['photos'][4]);
     //convert_videos_to_wp_posts($slices['videos'][0]);
     
-/*
-    WP_CLI::log("Starting to import photos");
+    /*
     if ($slices['photos']) {
+        $progress = \WP_CLI\Utils\make_progress_bar( 'Importing photos: ', count($slices['photos']) );
         foreach ($slices['photos'] as $slice) {
             convert_photos_to_wp_posts($slice);
+            $progress->tick();
        }
-    }
-
+       $progress->finish();
+    }*/
+/*
     WP_CLI::log("Starting to import videos");
     if ($slices['videos']) { 
+        $progress = \WP_CLI\Utils\make_progress_bar( 'Importing photos: ', count($slices['videos']) );
         foreach ($slices['videos'] as $slice) {
            convert_videos_to_wp_posts($slice);
+           $progress->tick();
        }
+       $progress->finish();
     }
 */
 }
@@ -68,8 +74,6 @@ function convert_videos_to_wp_posts($insta_videos){
 }
 
 function convert_insta_posts_to_wp_posts( $photos, $is_photo ){
-
-    WP_CLI::log(".");
 
     $wp_photo_category_id = 1;
     $wp_video_category_id = 5;
@@ -88,10 +92,16 @@ function convert_insta_posts_to_wp_posts( $photos, $is_photo ){
     $local_directory = get_stylesheet_directory() . "/../../ig_download/";
     $ig_temp_directory = get_stylesheet_directory() . "/../../ig_download/temp";
     $local_file_path = $local_directory . $photos['path'] . '';
-    $post_content = '<section class="insta-caption">' . $photos['caption'] . '</section><section class="insta-location">' . $location . '</section><section class="insta-imported">This post was automatically imported from Instagram 2019-10-10.</section>';
 
-    if(strlen ($title) > 30) {
-        $title = substr($title, 0, 27) . '...';
+    if(!empty($photos['caption']))
+    $pc_caption = '<section class="insta-caption">' . $photos['caption'] . '</section>';
+    if(!empty($location))
+        $pc_location ='<section class="insta-location">' . $location . '</section>';
+    $pc_import_info = '<section class="insta-imported">This post was automatically imported from Instagram 2019-10-10.</section>';
+    $post_content = $pc_caption . $pc_location . $pc_import_info;
+
+    if(strlen ($title) > 40) {
+        $title = substr($title, 0, 36) . '...';
     }
     if(strlen ($title) < 1) {
         $title = $yyyymmddhhmmss;
@@ -105,12 +115,12 @@ function convert_insta_posts_to_wp_posts( $photos, $is_photo ){
     }
 
     if (empty($local_file_name)){
-        WP_CLI::log("Skipping - no file name for post: " . $photos);
+        WP_CLI::warning("Skipping - no file name for post: " . $photos);
         return;
     }
 
     //todo: use sanitize wp method instead to make sure we check with the same string every time?
-    $wp_page_slug = str_replace('.','-',local_file_name);
+    $wp_page_slug = str_replace('.','-',$local_file_name);
 
 //Create post without adding the image to get a post id where we can attach the image after it's uploaded
     $wp_post = array(
@@ -129,12 +139,12 @@ function convert_insta_posts_to_wp_posts( $photos, $is_photo ){
     if( null == get_page_by_path( $wp_post['post_name'] )) {
         $post_id = wp_insert_post($wp_post);
     } else {
-        WP_CLI::log("Inserting post failed");
-        WP_CLI::log("photos:");
+        WP_CLI::warning("Inserting post failed");
+        WP_CLI::warning("photos:");
         var_dump($photos);
-        WP_CLI::log("wp_post:");
+        WP_CLI::warning("wp_post:");
         var_dump($wp_post);
-        WP_CLI::log("post_id:");
+        WP_CLI::warning("post_id:");
         var_dump($post_id);
 
         return;
@@ -199,45 +209,26 @@ function convert_insta_posts_to_wp_posts( $photos, $is_photo ){
     $updpost = wp_update_post( $post_with_image_or_video, true );
     
     if (!$updpost>0) {
-        WP_CLI::log("Updating post failed");
-        WP_CLI::log("post_with_image_or_video: ");
+        WP_CLI::warning("Updating post failed");
+        WP_CLI::warning("post_with_image_or_video: ");
         var_dump($post_with_image_or_video);
-        WP_CLI::log("updpost");
+        WP_CLI::warning("updpost");
         var_dump($updpost);
-        WP_CLI::log("photos");
+        WP_CLI::warning("photos");
         var_dump($photos);
-        WP_CLI::log("wp_post");
+        WP_CLI::warning("wp_post");
         var_dump($wp_post);
-        WP_CLI::log("post_id");
+        WP_CLI::warning("post_id");
         var_dump($post_id);
     }
 }
-
-/* unused
-function get_next_unique_post_title($title){
-
-    if ( ! is_admin() ) {
-        require_once( ABSPATH . 'wp-admin/includes/post.php' );
-    }
-
-    for ($i = 1; $i <= 20; $i++) {
-        if(post_exists( $title ) ) {
-            $title = $title . " - " . $i;
-        }
-    }
-    if(post_exists( $title ) ) {
-        $title = $title . " - " . $local_file_name;
-    }
-
-    return $title;
-}*/
 
 function upload_file( $file_name, $file_path, $yyyymm ){
     
     $file_bits = file_get_contents($file_path);
     
     if ($file_bits === false) {
-        WP_CLI::log("Reading file failed. file_path: " . $file_path);
+        WP_CLI::warning("Reading file failed. file_path: " . $file_path);
         var_dump($file_bits);
         return false;
     }
@@ -248,7 +239,7 @@ function upload_file( $file_name, $file_path, $yyyymm ){
         return $uploaded;   
     }
     
-    WP_CLI::log("Uploading to WP failed");
+    WP_CLI::warning("Uploading to WP failed");
     var_dump($uploaded);
     return false;
 }
