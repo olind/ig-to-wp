@@ -41,10 +41,12 @@ function parsejson(){
     $ig_json_file_uri = get_stylesheet_directory() . "/../../ig_download/media.json";
     $slices = json_decode( file_get_contents( $ig_json_file_uri ), true );
 
-    convert_photos_to_wp_posts($slices['photos'][4]);
+    $ig_post_count = count($slices['photos'])+count($slices['videos']);
+    WP_CLI::line("Total number of posts to import: " . $ig_post_count);
+
+    //convert_photos_to_wp_posts($slices['photos'][4]);
     //convert_videos_to_wp_posts($slices['videos'][0]);
-    
-    /*
+      
     if ($slices['photos']) {
         $progress = \WP_CLI\Utils\make_progress_bar( 'Importing photos: ', count($slices['photos']) );
         foreach ($slices['photos'] as $slice) {
@@ -52,8 +54,8 @@ function parsejson(){
             $progress->tick();
        }
        $progress->finish();
-    }*/
-/*
+    }
+
     WP_CLI::log("Starting to import videos");
     if ($slices['videos']) { 
         $progress = \WP_CLI\Utils\make_progress_bar( 'Importing photos: ', count($slices['videos']) );
@@ -63,7 +65,6 @@ function parsejson(){
        }
        $progress->finish();
     }
-*/
 }
 
 function convert_photos_to_wp_posts($insta_photos){
@@ -101,7 +102,7 @@ function convert_insta_posts_to_wp_posts( $photos, $is_photo ){
     $post_content = $pc_caption . $pc_location . $pc_import_info;
 
     if(strlen ($title) > 40) {
-        $title = substr($title, 0, 36) . '...';
+        $title = mb_substr($title, 0, 37) . '...';
     }
     if(strlen ($title) < 1) {
         $title = $yyyymmddhhmmss;
@@ -119,7 +120,6 @@ function convert_insta_posts_to_wp_posts( $photos, $is_photo ){
         return;
     }
 
-    //todo: use sanitize wp method instead to make sure we check with the same string every time?
     $wp_page_slug = str_replace('.','-',$local_file_name);
 
 //Create post without adding the image to get a post id where we can attach the image after it's uploaded
@@ -272,7 +272,7 @@ function generate_thumbnail_from_video($local_file_name, $local_video_file_path,
     $ffmpeg_path = '/usr/local/bin/ffmpeg';
 
     // timestamp: HH:MM:SS.fff
-    $ffmpeg_cmd = "$ffmpeg_path -i $local_video_file_path -ss 00:00:01.000 -y -vframes 1 $temp_image_file_path";
+    $ffmpeg_cmd = "$ffmpeg_path -i $local_video_file_path -ss 00:00:01.000 -y -hide_banner -loglevel panic -vframes 1 $temp_image_file_path";
     shell_exec($ffmpeg_cmd);
 
     return $temp_image_file_path;
