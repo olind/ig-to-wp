@@ -27,6 +27,8 @@ I'm using the following plugins on the import-site:
 
  * All-in-one WP Migration V6.77 + the built in WP import / export to move + migrate + merge sites
 
+TODO: Import IG posts with multiple images / videos to one WP post. 
+
 */
 
 parsejson();
@@ -41,37 +43,40 @@ function parsejson(){
     $ig_post_count = count($slices['photos'])+count($slices['videos']);
     WP_CLI::line("Total number of posts to import: " . $ig_post_count);
 
-    //convert_photos_to_wp_posts($slices['photos'][4]);
-    //convert_videos_to_wp_posts($slices['videos'][0]);
-      
+//Run one photo + 1 video
+    //convert_insta_posts_to_wp_posts($slices['photos'][0], true);
+    //convert_insta_posts_to_wp_posts($slices['videos'][0], false);
+
+//Run all import
+/* 
     if ($slices['photos']) {
         $progress = \WP_CLI\Utils\make_progress_bar( 'Importing photos: ', count($slices['photos']) );
         foreach ($slices['photos'] as $slice) {
-            convert_photos_to_wp_posts($slice);
+            convert_insta_posts_to_wp_posts($slice, true);
             $progress->tick();
        }
        $progress->finish();
     }
 
-    WP_CLI::log("Starting to import videos");
     if ($slices['videos']) { 
-        $progress = \WP_CLI\Utils\make_progress_bar( 'Importing photos: ', count($slices['videos']) );
+        $progress = \WP_CLI\Utils\make_progress_bar( 'Importing videos: ', count($slices['videos']) );
         foreach ($slices['videos'] as $slice) {
-           convert_videos_to_wp_posts($slice);
+           convert_insta_posts_to_wp_posts($slice, false);
            $progress->tick();
        }
        $progress->finish();
     }
-}
-
-function convert_photos_to_wp_posts($insta_photos){
-    convert_insta_posts_to_wp_posts($insta_photos, true);
-}
-function convert_videos_to_wp_posts($insta_videos){
-    convert_insta_posts_to_wp_posts($insta_videos, false);
+*/
 }
 
 function convert_insta_posts_to_wp_posts( $photos, $is_photo ){
+
+    //Sometimes files exists in json-file but no image / photo file is exported from IG. Not sure why.
+    $current_photo_full_path = getcwd() . '/ig_download/' . $photos['path'];
+    if(!file_exists ($current_photo_full_path)) {
+        WP_CLI::warning("Photo / video file missing: " . $photos['path'] . " full path: " . $current_photo_full_path .  ". Skipping...");
+        return;
+    }
 
     $wp_photo_category_id = 1;
     $wp_video_category_id = 5;
@@ -184,7 +189,7 @@ function convert_insta_posts_to_wp_posts( $photos, $is_photo ){
         set_post_thumbnail( $post_id, $attach_thumb_id ); //add thumbnail to featured image 
     }
 
-//If photo set as featured image (adding img. to post content instead)
+//If photo set as featured image. Since my IG-posts almost always is one photo I only put it to content.
     /*if($is_photo){
         set_post_thumbnail( $post_id, $attach_id );
     }*/
@@ -221,10 +226,10 @@ function convert_insta_posts_to_wp_posts( $photos, $is_photo ){
 }
 
 function upload_file( $file_name, $file_path, $yyyymm ){
-    
+
     $file_bits = file_get_contents($file_path);
-    
-    if ($file_bits === false) {
+
+    if ($file_bits == false) { //todo: according to php manual you should use === operator but I couldn't get that to work. No idea why.
         WP_CLI::warning("Reading file failed. file_path: " . $file_path);
         var_dump($file_bits);
         return false;
